@@ -15,16 +15,17 @@ use claviron_runtime::{
 };
 use http::{Request, StatusCode};
 
-use claviron_edge::pipeline::{
+use claviron_edge::HostConfig;
+use claviron_edge::{
     AnyAuthenticated, AuthContext, H2ConnectAccept, H2ConnectHandler,
     H2ConnectRegistry, H2ConnectReject, H2ConnectResult,
 };
 #[cfg(feature = "webtransport")]
-use claviron_edge::pipeline::{
+use claviron_edge::{
     H3WebTransportSession, WebTransportAccept, WebTransportHandler,
     WebTransportRegistry, WebTransportReject, WebTransportResult,
 };
-use claviron_edge::{HostConfig, Site};
+use claviron_pipeline::Site;
 
 fn append_routes(
     state: &AppState,
