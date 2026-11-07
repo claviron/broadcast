@@ -4,9 +4,6 @@ pub enum Error {
     SessionRequired,
     #[error("message stream error: {0}")]
     Stream(#[from] std::io::Error),
-    #[error("WebSocket error: {0}")]
-    #[cfg(feature = "websocket")]
-    WebSocket(#[from] fastwebsockets::WebSocketError),
     #[error("invalid Pusher JSON: {0}")]
     Json(#[from] serde_json::Error),
     #[error("invalid Pusher event: {0}")]

@@ -4,15 +4,6 @@ use std::future::Future;
 
 pub use claviron_orbit::link::application::Message;
 use claviron_orbit::link::application::{MessageReader, write_message};
-#[cfg(feature = "websocket")]
-use fastwebsockets::{
-    FragmentCollector, Frame, OpCode, Payload, Role, WebSocket,
-};
-#[cfg(feature = "websocket")]
-use hyper::upgrade::Upgraded;
-#[cfg(feature = "websocket")]
-use hyper_util::rt::TokioIo;
-use orbitive::stream::{Endpoint, ReadHalf, WriteHalf};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 /// The same message limit used by the native WebSocket service.
@@ -34,129 +25,26 @@ pub trait MessageStream: Send {
     ) -> impl Future<Output = crate::Result<()>> + Send;
 }
 
+/// A WebSocket whichever door it came through: on a socket or over Orbit the
+/// transport has joined fragments, answered pings and answered the peer's close.
 #[cfg(feature = "websocket")]
-pub struct FastWebSocketStream {
-    socket: FragmentCollector<TokioIo<Upgraded>>,
-}
+pub struct SocketStream(pub(crate) claviron_transport::websocket::WebSocket);
 
 #[cfg(feature = "websocket")]
-impl FastWebSocketStream {
-    pub fn new(upgraded: Upgraded) -> Self {
-        let mut socket =
-            WebSocket::after_handshake(TokioIo::new(upgraded), Role::Server);
-        socket.set_auto_close(false);
-        socket.set_auto_pong(true);
-        socket.set_max_message_size(MAX_MESSAGE_SIZE);
-        Self { socket: FragmentCollector::new(socket) }
-    }
-}
-
-#[cfg(feature = "websocket")]
-impl MessageStream for FastWebSocketStream {
+impl MessageStream for SocketStream {
     async fn receive(&mut self) -> crate::Result<Option<Message>> {
-        loop {
-            let frame = self.socket.read_frame().await?;
-            return Ok(Some(match frame.opcode {
-                OpCode::Text => Message::Text(
-                    String::from_utf8(frame.payload.to_vec()).map_err(
-                        |error| {
-                            std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                error,
-                            )
-                        },
-                    )?,
-                ),
-                OpCode::Binary => Message::Binary(frame.payload.to_vec()),
-                OpCode::Close => {
-                    let (code, reason) = if frame.payload.len() >= 2 {
-                        (
-                            u16::from_be_bytes([
-                                frame.payload[0],
-                                frame.payload[1],
-                            ]),
-                            String::from_utf8_lossy(&frame.payload[2..])
-                                .into_owned(),
-                        )
-                    } else {
-                        (1005, String::new())
-                    };
-                    Message::Close { code, reason }
-                }
-                _ => continue,
-            }));
-        }
+        Ok(self.0.recv().await)
     }
 
     async fn send(
         &mut self,
         message: Message,
     ) -> crate::Result<()> {
-        match message {
-            Message::Text(text) => {
-                self.socket
-                    .write_frame(Frame::text(Payload::Owned(text.into_bytes())))
-                    .await?
-            }
-            Message::Binary(bytes) => {
-                self.socket
-                    .write_frame(Frame::binary(Payload::Owned(bytes)))
-                    .await?
-            }
-            Message::Close { code: 1006, .. } => {} // Never emit an abnormal-close pseudo-code.
-            Message::Close { code: 1005, .. } => {
-                self.socket
-                    .write_frame(Frame::new(
-                        true,
-                        OpCode::Close,
-                        None,
-                        Payload::Owned(Vec::new()),
-                    ))
-                    .await?
-            }
-            Message::Close { code, reason } => {
-                self.socket
-                    .write_frame(Frame::close(code, reason.as_bytes()))
-                    .await?
-            }
+        // A peer's close has its answer already, and these two never go on a wire.
+        if matches!(message, Message::Close { code: 1005 | 1006, .. }) {
+            return Ok(());
         }
-        Ok(())
-    }
-}
-
-/// The existing edge/Gufi record format on an accepted Orbit duplex slot.
-/// Dropping the halves ends this session's directions and wakes its peer.
-pub struct OrbitMessageStream {
-    incoming: ReadHalf,
-    outgoing: WriteHalf,
-    records: MessageReader,
-}
-
-impl OrbitMessageStream {
-    pub fn new(endpoint: Endpoint) -> Self {
-        let (incoming, outgoing) = endpoint.split();
-        Self {
-            incoming,
-            outgoing,
-            records: MessageReader::with_limit(MAX_MESSAGE_SIZE),
-        }
-    }
-}
-
-impl MessageStream for OrbitMessageStream {
-    async fn receive(&mut self) -> crate::Result<Option<Message>> {
-        Ok(self.records.read(&mut self.incoming).await?)
-    }
-
-    async fn send(
-        &mut self,
-        message: Message,
-    ) -> crate::Result<()> {
-        write_message(&mut self.outgoing, &message).await?;
-        if matches!(message, Message::Close { .. }) {
-            self.outgoing.shutdown().await?;
-        }
-        Ok(())
+        Ok(self.0.send(message).await?)
     }
 }
 

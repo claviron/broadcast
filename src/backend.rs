@@ -19,7 +19,7 @@ use crate::PublishHandler;
 /// Install the configured publication factory; the caller owns the site registry.
 pub fn register(registry: &SiteRegistry) -> Result<()> {
     for name in ["broadcast", "pusher"] {
-        registry.register_backend_factory(Arc::new(Factory(name)))?;
+        registry.register_backend(Arc::new(Factory(name)))?;
     }
     Ok(())
 }
@@ -71,7 +71,11 @@ impl BackendFactory for Factory {
                 if service.applications().applications().is_empty() {
                     return Ok(Vec::new());
                 }
-                Arc::new(Rest::Fleet(PublishHandler::new(service)))
+                Arc::new(Rest::Fleet(Fleet {
+                    publish: PublishHandler::new(Arc::clone(&service)),
+                    #[cfg(feature = "websocket")]
+                    sockets: Sockets::new(context, service),
+                }))
             }
             #[cfg(feature = "pusher")]
             PusherTarget::Http(config) => Arc::new(Rest::Http(
@@ -88,8 +92,94 @@ impl BackendFactory for Factory {
     }
 }
 
+/// What a fleet declaration answers: publication, and each application's socket.
+struct Fleet {
+    publish: PublishHandler,
+    #[cfg(feature = "websocket")]
+    sockets: Sockets,
+}
+
+/// The terms a scope prepared its sockets with.
+#[cfg(feature = "websocket")]
+struct Sockets {
+    service: Arc<crate::BroadcastService>,
+    host: Option<Box<str>>,
+    /// The transport's `h1.upgrade`: what the connection's terms allow.
+    h1_upgrade: bool,
+    cors: Option<claviron_http::config::cors::CorsConfig>,
+}
+
+#[cfg(feature = "websocket")]
+impl Sockets {
+    fn new(
+        context: &BackendContext<'_>,
+        service: Arc<crate::BroadcastService>,
+    ) -> Self {
+        Self {
+            service,
+            host: context.host.map(|host| host.to_string().into_boxed_str()),
+            h1_upgrade: context.transport.h1.upgrade,
+            cors: context.route.cors.clone(),
+        }
+    }
+
+    fn answer(
+        &self,
+        request: Request<RouteBody>,
+    ) -> Socket {
+        use claviron_http::socket::{Carrier, Offer};
+        use http::StatusCode;
+
+        let Some(offer) = request.extensions().get::<Offer>() else {
+            return Socket::None(request);
+        };
+        if offer.info().carrier == Carrier::H1 && !self.h1_upgrade {
+            return Socket::Answer(refuse(StatusCode::FORBIDDEN));
+        }
+        let Some(application) =
+            self.service.socket_application(request.uri().path())
+        else {
+            return Socket::None(request);
+        };
+        // An origin the scope's CORS does not allow opens nothing; channel
+        // authorization remains the session's.
+        if let Some(origin) = request.headers().get(http::header::ORIGIN)
+            && let Some(cors) = &self.cors
+            && !origin.to_str().is_ok_and(|origin| {
+                cors.enabled() && cors.allows_origin(origin)
+            })
+        {
+            return Socket::Answer(refuse(StatusCode::FORBIDDEN));
+        }
+        let service = Arc::clone(&self.service);
+        let host = self.host.clone();
+        let (request, _) = request.into_parts();
+        Socket::Answer(DispatchCall::new(async move {
+            ServiceResult::Handled(
+                service
+                    .open_socket(application, host.as_deref(), &request)
+                    .await,
+            )
+        }))
+    }
+}
+
+/// Whether a request opens one of this scope's sockets.
+#[cfg(feature = "websocket")]
+enum Socket {
+    Answer(DispatchCall),
+    None(Request<RouteBody>),
+}
+
+#[cfg(feature = "websocket")]
+fn refuse(status: http::StatusCode) -> DispatchCall {
+    DispatchCall::ready(ServiceResult::Handled(claviron_http::err_status(
+        status,
+    )))
+}
+
 enum Rest {
-    Fleet(PublishHandler),
+    Fleet(Fleet),
     #[cfg(feature = "pusher")]
     Http(claviron_pusher::PusherAdapter),
 }
@@ -114,15 +204,21 @@ impl DispatchStep for Rest {
         _context: Option<HostContext<'_>>,
     ) -> DispatchCall {
         match self {
-            Self::Fleet(handler) => match handler
-                .binding(request.uri().path())
-                .cloned()
-            {
-                Some(binding) => DispatchCall::new(async move {
-                    ServiceResult::Handled(binding.handle(request).await)
-                }),
-                None => DispatchCall::ready(ServiceResult::Unhandled(request)),
-            },
+            Self::Fleet(fleet) => {
+                #[cfg(feature = "websocket")]
+                let request = match fleet.sockets.answer(request) {
+                    Socket::Answer(answer) => return answer,
+                    Socket::None(request) => request,
+                };
+                match fleet.publish.binding(request.uri().path()).cloned() {
+                    Some(binding) => DispatchCall::new(async move {
+                        ServiceResult::Handled(binding.handle(request).await)
+                    }),
+                    None => {
+                        DispatchCall::ready(ServiceResult::Unhandled(request))
+                    }
+                }
+            }
             #[cfg(feature = "pusher")]
             Self::Http(adapter)
                 if claviron_pusher::PusherAdapter::accepts_path(

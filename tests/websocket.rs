@@ -5,8 +5,8 @@ use bytes::Bytes;
 use claviron_broadcast::{BroadcastConfig, BroadcastService, PublishHandler};
 use claviron_http::ext::ConnCtx;
 use claviron_http::session::SessionOwner;
-use claviron_http::upgrade::{H1UpgradeRegistry, try_h1_upgrade};
-use claviron_http::{ServiceResult, boxed_body, bytes_body, err_status};
+use claviron_http::socket::attach;
+use claviron_http::{ServiceResult, boxed_body, bytes_body};
 use claviron_runtime::registry::Runnable;
 use claviron_runtime::{AppState, Gate, RunContext};
 use fastwebsockets::{FragmentCollector, Frame, Payload, Role, WebSocket};
@@ -64,11 +64,54 @@ fn connection_context() -> Arc<ConnCtx> {
     })
 }
 
+/// The record format on an accepted Orbit duplex slot, without a door.
+struct OrbitMessageStream {
+    incoming: orbitive::stream::ReadHalf,
+    outgoing: orbitive::stream::WriteHalf,
+    records: claviron_orbit::link::application::MessageReader,
+}
+
+impl OrbitMessageStream {
+    fn new(endpoint: orbitive::stream::Endpoint) -> Self {
+        let (incoming, outgoing) = endpoint.split();
+        let records =
+            claviron_orbit::link::application::MessageReader::with_limit(
+                64 * 1024,
+            );
+        Self { incoming, outgoing, records }
+    }
+}
+
+impl claviron_broadcast::stream::MessageStream for OrbitMessageStream {
+    async fn receive(
+        &mut self
+    ) -> claviron_broadcast::Result<Option<claviron_broadcast::stream::Message>>
+    {
+        Ok(self.records.read(&mut self.incoming).await?)
+    }
+
+    async fn send(
+        &mut self,
+        message: claviron_broadcast::stream::Message,
+    ) -> claviron_broadcast::Result<()> {
+        use tokio::io::AsyncWriteExt;
+
+        claviron_orbit::link::application::write_message(
+            &mut self.outgoing,
+            &message,
+        )
+        .await?;
+        if matches!(message, claviron_broadcast::stream::Message::Close { .. })
+        {
+            self.outgoing.shutdown().await?;
+        }
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn orbit_messages_share_the_pusher_session_and_service_shutdown() {
-    use claviron_broadcast::stream::{
-        Message, MessageStream, OrbitMessageStream,
-    };
+    use claviron_broadcast::stream::{Message, MessageStream};
     use claviron_orbit::link::application::ApplicationBodies;
 
     tokio::time::timeout(TIMEOUT, async {
@@ -136,40 +179,28 @@ async fn websocket_upgrade_speaks_pusher_and_service_restart_drains_the_session(
         let cancellation = CancellationToken::new();
         let running = start_service(Arc::clone(&service), state.clone(), cancellation.clone()).await;
 
-        let upgrades = Arc::new(H1UpgradeRegistry::default());
-        upgrades
-            .register_handler_for_host(
-                "socket.test",
-                "/app/demo-key",
-                service.upgrade_handler("demo")
-            )
-            .unwrap();
-        let host: claviron_types::Host = "socket.test".parse().unwrap();
-
         let owner = SessionOwner::new("test".parse().unwrap());
         let gate = Gate::new(None, TIMEOUT);
         let scope = owner.bind(gate.try_enter().unwrap());
         let sessions = scope.sessions();
         let (client_io, server_io) = duplex(8192);
+        let opening = Arc::clone(&service);
         let server = tokio::spawn(async move {
+            let answering = Arc::clone(&opening);
             let service = hyper::service::service_fn(move |request: Request<hyper::body::Incoming>| {
-                let state = state.clone();
-                let upgrades = upgrades.clone();
-                let host = host.clone();
+                let answering = Arc::clone(&answering);
                 let sessions = sessions.clone();
                 async move {
                     let mut request = request.map(boxed_body);
                     request.extensions_mut().insert(connection_context());
-                    request.extensions_mut().insert(sessions);
-                    let result = match upgrades.resolve(&host, request.uri().path()) {
-                        Some(binding) => try_h1_upgrade(state, host, binding, request).await,
-                        None => ServiceResult::Unhandled(request),
-                    };
-                    let response = match result {
-                        ServiceResult::Handled(response) => response,
-                        ServiceResult::Unhandled(_) => err_status(StatusCode::NOT_FOUND),
-                    };
-                    Ok::<_, std::convert::Infallible>(response)
+                    let offer = attach(&mut request, &sessions).unwrap().unwrap();
+                    let (parts, _) = request.into_parts();
+                    let application =
+                        answering.socket_application(parts.uri.path()).unwrap();
+                    let response = answering
+                        .open_socket(application, Some("socket.test"), &parts)
+                        .await;
+                    Ok::<_, std::convert::Infallible>(offer.finish(response))
                 }
             });
             let _scope = scope;

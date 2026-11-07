@@ -15,9 +15,9 @@ mod http;
 pub mod runner;
 mod service;
 mod session;
-pub mod stream;
 #[cfg(feature = "websocket")]
-mod upgrade;
+mod socket;
+pub mod stream;
 
 pub use admission::SessionAuthenticator;
 pub use config::{
@@ -30,8 +30,6 @@ pub use service::{
     BroadcastService, GroupLayer, register, register_with_config,
 };
 pub use session::BroadcastSession;
-#[cfg(feature = "websocket")]
-pub use upgrade::BroadcastUpgradeHandler;
 
 /// Wire compatibility, independent of the broadcast service's transport.
 pub mod protocol {

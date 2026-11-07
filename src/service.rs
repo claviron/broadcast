@@ -23,8 +23,6 @@ use crate::error::SessionRefusal;
 use crate::fleet::{FleetFanout, FleetPublication};
 use crate::hooks::{BroadcastOccupancyService, Hooks};
 use crate::session::BroadcastSession;
-#[cfg(feature = "websocket")]
-use crate::upgrade::BroadcastUpgradeHandler;
 const OUTBOUND_QUEUE_CAPACITY: usize = 64;
 static SOCKET_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
@@ -125,17 +123,6 @@ impl BroadcastService {
             .expect("broadcast authentication registry lock poisoned")
             .insert(application, authenticator);
         Ok(())
-    }
-
-    #[cfg(feature = "websocket")]
-    pub fn upgrade_handler(
-        self: &Arc<Self>,
-        application: impl Into<Arc<str>>,
-    ) -> Arc<BroadcastUpgradeHandler> {
-        Arc::new(BroadcastUpgradeHandler {
-            service: Arc::clone(self),
-            application: application.into(),
-        })
     }
 
     pub fn publish_local(
