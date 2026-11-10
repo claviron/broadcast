@@ -52,6 +52,7 @@ applications:
 
 fn connection_context() -> Arc<ConnCtx> {
     Arc::new(ConnCtx {
+        transport: claviron_http::listener::ListenerTransport::Tcp,
         state: Default::default(),
         listener: "test".parse().unwrap(),
         proto: Some(claviron_http::listener::HttpProtocol::H1),
