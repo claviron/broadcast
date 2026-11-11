@@ -7,11 +7,14 @@ use http::{Method, Response};
 use super::*;
 
 fn owner() -> Owner {
-    Owner::new(service_fn(|_: AppRequest| async {
-        Ok::<_, Infallible>(Response::new(claviron_http::bytes_body(
-            Bytes::from_static(b"owner"),
-        )))
-    }))
+    Owner::new(
+        claviron_runtime::ExecutorSpec::Inherit,
+        service_fn(|_: AppRequest| async {
+            Ok::<_, Infallible>(Response::new(claviron_http::bytes_body(
+                Bytes::from_static(b"owner"),
+            )))
+        }),
+    )
 }
 
 async fn answer(

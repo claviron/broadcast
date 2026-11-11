@@ -36,6 +36,7 @@ pub fn in_front(
 }
 
 fn place(mut owner: Owner) -> (Owner, Arc<Placement>) {
+    let execution = owner.execution();
     let upgrades = owner.take_upgrades();
     let placement = Arc::new(Placement::default());
     let prepared = Arc::clone(&placement.prepared);
@@ -56,7 +57,7 @@ fn place(mut owner: Owner) -> (Owner, Arc<Placement>) {
     });
     let sockets =
         Sockets { prepared: Arc::clone(&placement.prepared), owner: upgrades };
-    let owner = Owner::new(answering).upgrades(service_fn(
+    let owner = Owner::new(execution, answering).upgrades(service_fn(
         move |request: AppRequest| {
             let sockets = sockets.clone();
             async move { Ok::<_, Infallible>(sockets.answer(request).await) }

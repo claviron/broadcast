@@ -187,6 +187,7 @@ enum Rest {
 impl BackendHandler for Rest {
     fn contract(&self) -> BackendContract {
         BackendContract {
+            execution: claviron_runtime::ExecutorSpec::Inherit,
             identity: match self {
                 Self::Fleet(_) => BackendIdentity::None,
                 #[cfg(feature = "pusher")]
