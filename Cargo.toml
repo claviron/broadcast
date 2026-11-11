@@ -94,18 +94,18 @@ arc-swap = "1.9"
 async-trait = "0.1"
 bytes = "1.11"
 chrono = { version = "0.4", default-features = false }
-claviron = { version = "0.2.0-alpha.26", path = "../../claviron", default-features = false }
-claviron-app = { version = "0.2.0-alpha.26", path = "../../claviron/crates/app" }
-claviron-edge = { version = "0.2.0-alpha.26", path = "../../claviron/crates/edge" }
-claviron-helpers = { version = "0.2.0-alpha.26", path = "../../claviron/crates/helpers" }
-claviron-http = { version = "0.2.0-alpha.26", path = "../../claviron/crates/http" }
-claviron-orbit = { version = "0.2.0-alpha.26", path = "../../claviron/crates/orbit" }
-claviron-pipeline = { version = "0.2.0-alpha.26", path = "../../claviron/crates/pipeline" }
+claviron = { version = "0.2.0-alpha.26", default-features = false }
+claviron-app = { version = "0.2.0-alpha.26" }
+claviron-edge = { version = "0.2.0-alpha.26" }
+claviron-helpers = { version = "0.2.0-alpha.26" }
+claviron-http = { version = "0.2.0-alpha.26" }
+claviron-orbit = { version = "0.2.0-alpha.26" }
+claviron-pipeline = { version = "0.2.0-alpha.26" }
 claviron-pusher = { version = "0.2.0-alpha.26", path = "crates/pusher" }
-claviron-runner = { version = "0.2.0-alpha.26", path = "../../claviron/crates/runner" }
-claviron-transport = { version = "0.2.0-alpha.26", path = "../../claviron/crates/transport" }
-claviron-runtime = { version = "0.2.0-alpha.26", path = "../../claviron/crates/runtime" }
-claviron-types = { version = "0.2.0-alpha.26", path = "../../claviron/crates/types", default-features = false }
+claviron-runner = { version = "0.2.0-alpha.26" }
+claviron-transport = { version = "0.2.0-alpha.26" }
+claviron-runtime = { version = "0.2.0-alpha.26" }
+claviron-types = { version = "0.2.0-alpha.26", default-features = false }
 fastwebsockets = { version = "0.10", default-features = false }
 hex = "0.4"
 hmac = "0.13"
