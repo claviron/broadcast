@@ -1,7 +1,7 @@
 use bytes::{BufMut, Bytes, BytesMut};
+use claviron::orbitive::fleet::FleetLaneCursor;
+use claviron::orbitive::{Fleet, NetId64, OrbitTyped, RingSpec};
 use claviron_pusher::{PresenceMember, PublishedEvent};
-use orbitive::fleet::FleetLaneCursor;
-use orbitive::{Fleet, NetId64, OrbitTyped, RingSpec};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -99,7 +99,7 @@ impl FleetFanout {
     ))]
     pub(crate) fn event_fd(
         &self
-    ) -> std::io::Result<orbitive::core::RingEventFd> {
+    ) -> std::io::Result<claviron::orbitive::core::RingEventFd> {
         self.fleet.ring_event_fd::<PublicationRecord>()
     }
 
@@ -340,7 +340,7 @@ impl FleetFanout {
     /// payload ring. `None` when they are gone or do not add up.
     fn read_payload(
         &self,
-        frame: orbitive::Frame,
+        frame: claviron::orbitive::Frame,
     ) -> Option<Vec<u8>> {
         if frame.ver != PROTOCOL_VERSION as u64 {
             warn!(id = %frame.id, "ignored incompatible Broadcast fleet publication");
@@ -366,7 +366,7 @@ impl FleetFanout {
                 first.counter().checked_add(offset)?,
             );
             let chunk = self.fleet.read_lane_at::<PayloadRecord>(
-                orbitive::NodeId::new(first.node()),
+                claviron::orbitive::NodeId::new(first.node()),
                 id.counter(),
             )?;
             if chunk.id != id || chunk.kind != FRAME_KIND_PAYLOAD {

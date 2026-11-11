@@ -31,6 +31,7 @@ runner = ["websocket", "dep:claviron-runner", "claviron-runner/orbit", "dep:clav
 
 [dependencies]
 # Claviron contracts and lifecycle
+claviron = { workspace = true, features = ["orbit"] }
 claviron-app.workspace = true
 claviron-edge = { workspace = true, optional = true }
 claviron-http = { workspace = true, optional = true }
@@ -45,7 +46,6 @@ claviron-runtime.workspace = true
 # Runtime and shared state
 arc-swap.workspace = true
 async-trait.workspace = true
-orbitive = { workspace = true, features = ["stream-tokio"] }
 tokio = { workspace = true, features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 tokio-util = { workspace = true, features = ["rt"] }
 
@@ -94,6 +94,7 @@ arc-swap = "1.9"
 async-trait = "0.1"
 bytes = "1.11"
 chrono = { version = "0.4", default-features = false }
+claviron = { version = "0.2.0-alpha.26", path = "../../claviron", default-features = false }
 claviron-app = { version = "0.2.0-alpha.26", path = "../../claviron/crates/app" }
 claviron-edge = { version = "0.2.0-alpha.26", path = "../../claviron/crates/edge" }
 claviron-helpers = { version = "0.2.0-alpha.26", path = "../../claviron/crates/helpers" }
@@ -114,7 +115,6 @@ http-body-util = "0.1"
 hyper = "1.12"
 hyper-util = "0.1"
 md-5 = "0.11"
-orbitive = { version = "0.6.11", path = "../../foundation/orbitive", default-features = false }
 serde = "1"
 serde_json = "1"
 serde_yaml = "0.9"

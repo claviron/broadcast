@@ -441,7 +441,7 @@ async fn run_generation(
 fn deliver_fleet(
     generation: &Generation,
     fleet: &FleetFanout,
-    cursor: &mut orbitive::fleet::FleetLaneCursor,
+    cursor: &mut claviron::orbitive::fleet::FleetLaneCursor,
 ) {
     for (kind, source_node, payload) in fleet.poll_all(cursor) {
         match kind {

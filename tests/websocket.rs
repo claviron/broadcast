@@ -67,13 +67,13 @@ fn connection_context() -> Arc<ConnCtx> {
 
 /// The record format on an accepted Orbit duplex slot, without a door.
 struct OrbitMessageStream {
-    incoming: orbitive::stream::ReadHalf,
-    outgoing: orbitive::stream::WriteHalf,
+    incoming: claviron::orbitive::stream::ReadHalf,
+    outgoing: claviron::orbitive::stream::WriteHalf,
     records: claviron_orbit::link::application::MessageReader,
 }
 
 impl OrbitMessageStream {
-    fn new(endpoint: orbitive::stream::Endpoint) -> Self {
+    fn new(endpoint: claviron::orbitive::stream::Endpoint) -> Self {
         let (incoming, outgoing) = endpoint.split();
         let records =
             claviron_orbit::link::application::MessageReader::with_limit(
@@ -127,7 +127,8 @@ async fn orbit_messages_share_the_pusher_session_and_service_shutdown() {
         .await;
 
         let fleet = Arc::new(
-            orbitive::Fleet::join("broadcast-stream-test", 1).unwrap(),
+            claviron::orbitive::Fleet::join("broadcast-stream-test", 1)
+                .unwrap(),
         );
         let bodies = ApplicationBodies::open(fleet, 1).unwrap();
         let (edge, ticket) = bodies.create().unwrap();

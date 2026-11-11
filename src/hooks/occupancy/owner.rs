@@ -270,7 +270,7 @@ impl Runnable<AppState, (Arc<FleetProvider>,)> for BroadcastOccupancyService {
 async fn deliver(
     state: &AppState,
     fleet: &FleetFanout,
-    cursor: &mut orbitive::fleet::FleetLaneCursor,
+    cursor: &mut claviron::orbitive::fleet::FleetLaneCursor,
     occupancy: &mut Occupancy,
     include_local: bool,
     hooks: &Hooks,
