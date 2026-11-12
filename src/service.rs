@@ -419,8 +419,11 @@ async fn run_generation(
                 _ = context.cancelled() => break,
                 ready = event_fd.readable() => {
                     let mut ready = ready.map_err(|error| registry::Error::msg(format!("Broadcast Orbit readiness failed: {error}")))?;
-                    event_fd.get_ref().drain().map_err(|error| registry::Error::msg(format!("Broadcast Orbit readiness drain failed: {error}")))?;
+                    // Clear before draining: a signal that lands after the
+                    // drain is the only one until the next drain, and
+                    // clearing after would erase it.
                     ready.clear_ready();
+                    event_fd.get_ref().drain().map_err(|error| registry::Error::msg(format!("Broadcast Orbit readiness drain failed: {error}")))?;
                     deliver_fleet(generation, fleet, &mut cursor);
                 }
             }

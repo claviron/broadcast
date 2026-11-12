@@ -244,8 +244,11 @@ impl Runnable<AppState, (Arc<FleetProvider>,)> for BroadcastOccupancyService {
                     _ = context.cancelled() => break,
                     ready = event_fd.readable() => {
                         let mut ready = ready.map_err(|error| registry::Error::msg(format!("Broadcast occupancy readiness failed: {error}")))?;
-                        event_fd.get_ref().drain().map_err(|error| registry::Error::msg(format!("Broadcast occupancy readiness drain failed: {error}")))?;
+                        // Clear before draining: a signal that lands after the
+                        // drain is the only one until the next drain, and
+                        // clearing after would erase it.
                         ready.clear_ready();
+                        event_fd.get_ref().drain().map_err(|error| registry::Error::msg(format!("Broadcast occupancy readiness drain failed: {error}")))?;
                         deliver(&state, &fleet, &mut cursor, &mut occupancy, include_local, &self.0).await;
                     }
                 }
