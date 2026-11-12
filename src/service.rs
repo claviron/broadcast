@@ -27,6 +27,7 @@ const OUTBOUND_QUEUE_CAPACITY: usize = 64;
 static SOCKET_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 pub(crate) struct Generation {
+    pub(crate) pid: u32,
     pub(crate) cancellation: CancellationToken,
     pub(crate) sessions: Gate,
     pub(crate) channels: ChannelRegistry,
@@ -192,7 +193,7 @@ impl BroadcastService {
             .map_err(|_| SessionRefusal::Stopping)?;
         let socket_id = Arc::<str>::from(format!(
             "{}.{}",
-            std::process::id(),
+            generation.pid,
             SOCKET_SEQUENCE.fetch_add(1, Ordering::Relaxed)
         ));
         let cancellation = generation.cancellation.child_token();
@@ -296,6 +297,7 @@ impl Runnable<AppState, (Option<Arc<FleetProvider>>,)> for BroadcastService {
             fleet.and_then(|provider| provider.handle()).map(FleetFanout::new);
         let node = fleet.as_ref().map_or(0, FleetFanout::node_id);
         let generation = Arc::new(Generation {
+            pid: state.pid(),
             groups: crate::groups::Groups::new(node),
             cancellation: CancellationToken::new(),
             sessions: Gate::new(None, Duration::ZERO),

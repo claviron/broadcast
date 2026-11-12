@@ -47,6 +47,7 @@ async fn audit_unsubscribe_releases_only_selected_memberships_in_both_wire_forms
  {
     for string_data in [false, true] {
         let generation = Arc::new(Generation {
+            pid: 1,
             cancellation: CancellationToken::new(),
             sessions: Gate::new(None, std::time::Duration::ZERO),
             channels: Default::default(),
