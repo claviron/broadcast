@@ -80,7 +80,7 @@ members = ["crates/pusher"]
 resolver = "3"
 
 [workspace.package]
-version = "0.2.0-alpha.26.1"
+version = "0.2.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/claviron/broadcast"
@@ -94,18 +94,18 @@ arc-swap = "1.9"
 async-trait = "0.1"
 bytes = "1.11"
 chrono = { version = "0.4", default-features = false }
-claviron = { version = "0.2.0-alpha.26.1", default-features = false }
-claviron-app = { version = "0.2.0-alpha.26.1" }
-claviron-edge = { version = "0.2.0-alpha.26.1" }
-claviron-helpers = { version = "0.2.0-alpha.26.1" }
-claviron-http = { version = "0.2.0-alpha.26.1" }
-claviron-orbit = { version = "0.2.0-alpha.26.1" }
-claviron-pipeline = { version = "0.2.0-alpha.26.1" }
-claviron-pusher = { version = "0.2.0-alpha.26.1", path = "crates/pusher" }
-claviron-runner = { version = "0.2.0-alpha.26.1" }
-claviron-transport = { version = "0.2.0-alpha.26.1" }
-claviron-runtime = { version = "0.2.0-alpha.26.1" }
-claviron-types = { version = "0.2.0-alpha.26.1", default-features = false }
+claviron = { version = "0.2.1", default-features = false }
+claviron-app = { version = "0.2.1" }
+claviron-edge = { version = "0.2.1" }
+claviron-helpers = { version = "0.2.1" }
+claviron-http = { version = "0.2.1" }
+claviron-orbit = { version = "0.2.1" }
+claviron-pipeline = { version = "0.2.1" }
+claviron-pusher = { version = "0.2.1", path = "crates/pusher" }
+claviron-runner = { version = "0.2.1" }
+claviron-transport = { version = "0.2.1" }
+claviron-runtime = { version = "0.2.1" }
+claviron-types = { version = "0.2.1", default-features = false }
 fastwebsockets = { version = "0.10", default-features = false }
 hex = "0.4"
 hmac = "0.13"

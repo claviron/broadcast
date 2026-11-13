@@ -2,9 +2,6 @@
 
 Realtime sessions, channel publication, and same-host fleet fanout for Claviron.
 
-This independent workspace contains two packages. Its standalone release is
-not published yet.
-
 | Package | Responsibility |
 | --- | --- |
 | `claviron-broadcast` | Live sessions, channels, presence, groups and fleet publication. |
