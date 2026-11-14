@@ -554,6 +554,11 @@ fn deliver_pusher(
     }
 }
 
+/// Register the service with its catalog from `broadcast.yaml`, in every role.
+///
+/// Integrations that need the service call this for themselves, so a host
+/// registers broadcast once whichever of them it composes. A service already
+/// registered, from either function, is kept.
 pub fn register(state: &AppState) -> registry::Result<()> {
     if state.registry_ref().resolve::<BroadcastService>().is_some() {
         return Ok(());
@@ -567,10 +572,20 @@ pub fn register(state: &AppState) -> registry::Result<()> {
 }
 
 /// Register a host-owned catalog through the normal fleet/session composition.
+///
+/// The catalog is the host's, so it is never dropped in favour of a service
+/// already registered: call this before any integration that registers
+/// broadcast for itself.
 pub fn register_with_config(
     state: &AppState,
     config: BroadcastConfig,
 ) -> registry::Result<()> {
+    if state.registry_ref().resolve::<BroadcastService>().is_some() {
+        return Err(registry::Error::msg(
+            "BroadcastService is already registered; register the host's \
+             catalog before integrations that register broadcast",
+        ));
+    }
     let config = config
         .validate()
         .map_err(|error| registry::Error::msg(error.to_string()))?;

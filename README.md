@@ -17,6 +17,11 @@ it does not make loopback HTTP calls or require Redis.
 environment. `register_with_config(state, config)` accepts the same validated
 catalog from code. Neither opens a listener.
 
+`register` keeps a service that is already registered, so integrations that
+need broadcast call it themselves and a host registers it once. A catalog
+from code is never replaced: call `register_with_config` before those
+integrations, or it fails.
+
 ```yaml
 applications:
   dashboard:
